@@ -9,7 +9,7 @@ const axios = require('axios');
 const dotenv = require('dotenv');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ path: require('path').join(__dirname, '..', '..', '.env') });
 
 // Configuration
 const PINTEREST_APP_ID = process.env.PINTEREST_APP_ID;
@@ -29,6 +29,7 @@ async function storeToken(token) {
     access_token: token.access_token,
     refresh_token: token.refresh_token || null,
     expires_at: token.expires_at || (Date.now() + 86400000), // Default 24 hours
+    refresh_token_expires_at: token.refresh_token_expires_at || null,
     scopes: token.scopes || [],
     name: token.name || 'Pinterest API Token'
   };
@@ -41,7 +42,7 @@ async function storeToken(token) {
 
   // Write token to file
   fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokenData, null, 2));
-  console.log('Token stored successfully.');
+  console.error('Token stored successfully.');
 }
 
 /**
@@ -51,7 +52,7 @@ async function storeToken(token) {
 function readToken() {
   try {
     if (!fs.existsSync(TOKEN_PATH)) {
-      console.log('No token file found.');
+      console.error('No token file found.');
       return null;
     }
 
@@ -69,7 +70,7 @@ function readToken() {
  * @param {number} bufferSeconds Seconds before expiration to consider token expired
  * @returns {boolean} True if token is expired
  */
-function isTokenExpired(token, bufferSeconds = 3052) {
+function isTokenExpired(token, bufferSeconds = 300) {
   if (!token || !token.expires_at) {
     return true;
   }
@@ -78,55 +79,41 @@ function isTokenExpired(token, bufferSeconds = 3052) {
   return token.expires_at < Date.now() + (bufferSeconds * 1000);
 }
 
-async function inspectToken() {
-  try {
-    const response = await axios.post(`${PINTEREST_API_URL}/oauth/token`, 
-      new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: readToken().refresh_token,
-        scope: 'boards:read'
-      }).toString(), 
-      {
-        headers: {
-          'Authorization': `Basic ${Buffer.from(`${PINTEREST_APP_ID}:${PINTEREST_APP_SECRET}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      }
-    );
-
-    const token = {
-      access_token: response.data.access_token,
-			response_type: response.data.response_type,
-			token_type: response.data.token_type,
-			expires_in: response.data.expires_in,
-			ßexpires_at: response.data.expires_at,
-			scope: response.data.scope,
-      refresh_token: response.data.refresh_token,
-      refresh_token_expires_at: response.data.expires_at,
-      refresh_token_expires_in: response.data.expires_in,
-    };
-
-    // Store the new token
-    await storeToken(token);
-    return token;
-  } catch (error) {
-    console.error('Error inspecting token:', error.response?.data || error.message);
-    throw error;
-  }
-}
 /**
- * Refreshes an access token using the refresh token
- * @param {string} refreshToken Refresh token
+ * Builds the stored token object from a Pinterest /oauth/token response.
+ * Pinterest returns expires_in (seconds), not expires_at, so compute it here.
+ * @param {Object} data Response body
+ * @param {Object} [previous] Previously stored token (to keep fields Pinterest omits)
+ */
+function buildToken(data, previous = {}) {
+  const now = Date.now();
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token || previous.refresh_token || null,
+    token_type: data.token_type,
+    expires_at: data.expires_in ? now + data.expires_in * 1000 : undefined,
+    refresh_token_expires_at: data.refresh_token_expires_in
+      ? now + data.refresh_token_expires_in * 1000
+      : previous.refresh_token_expires_at,
+    scopes: data.scope || previous.scopes || []
+  };
+}
+
+/**
+ * Refreshes an access token using the refresh token.
+ * No scope is sent, so Pinterest keeps every scope granted at sign-in
+ * (sending scope=boards:read here used to downgrade the token to read-only).
+ * @param {string} refreshTokenValue Refresh token
  * @returns {Promise<Object>} New token object
  */
-async function refreshToken(refreshToken) {
+async function refreshToken(refreshTokenValue) {
   try {
-    const response = await axios.post(`${PINTEREST_API_URL}/oauth/token`, 
+    const previous = readToken() || {};
+    const response = await axios.post(`${PINTEREST_API_URL}/oauth/token`,
       new URLSearchParams({
         grant_type: 'refresh_token',
-        refresh_token: readToken().refresh_token,
-        scope: 'boards:read'
-      }).toString(), 
+        refresh_token: refreshTokenValue || previous.refresh_token
+      }).toString(),
       {
         headers: {
           'Authorization': `Basic ${Buffer.from(`${PINTEREST_APP_ID}:${PINTEREST_APP_SECRET}`).toString('base64')}`,
@@ -135,19 +122,7 @@ async function refreshToken(refreshToken) {
       }
     );
 
-    const token = {
-      access_token: response.data.access_token,
-			response_type: response.data.response_type,
-			token_type: response.data.token_type,
-			expires_in: response.data.expires_in,
-			expires_at: response.data.expires_at,
-			scope: response.data.scope,
-      refresh_token: response.data.refresh_token,
-      refresh_token_expires_at: response.data.expires_at,
-      refresh_token_expires_in: response.data.expires_in,
-    };
-
-    // Store the new token
+    const token = buildToken(response.data, previous);
     await storeToken(token);
     return token;
   } catch (error) {
@@ -155,6 +130,9 @@ async function refreshToken(refreshToken) {
     throw error;
   }
 }
+
+// Kept for backwards compatibility with the old export; it was a copy of refreshToken.
+const inspectToken = () => refreshToken();
 
 /**
  * Gets a valid access token, refreshing if necessary
@@ -170,10 +148,10 @@ async function getValidToken() {
     
     // Check if token is expired
     if (isTokenExpired(token)) {
-      console.log('Token expired. Refreshing...');
+      console.error('Token expired. Refreshing...');
       
       if (!token.refresh_token) {
-        console.log('No refresh token available. Re-authentication required.');
+        console.error('No refresh token available. Re-authentication required.');
         return null;
       }
       
@@ -209,16 +187,7 @@ async function exchangeCodeForToken(code) {
       }
     );
 
-    const token = {
-      access_token: response.data.access_token,
-      refresh_token: response.data.refresh_token,
-			response_type: response.data.response_type,
-			token_type: response.data.token_type,
-			expires_in: response.data.expires_in,
-			expires_at: response.data.expires_at,
-			refresh_token_expires_in: response.data.refresh_token_expires_in,
-      scopes: response.data.scope
-    };
+    const token = buildToken(response.data);
 
     // Store the new token
     await storeToken(token);
@@ -238,7 +207,7 @@ async function revokeToken() {
     const token = readToken();
     
     if (!token || !token.access_token) {
-      console.log('No token to revoke.');
+      console.error('No token to revoke.');
       return false;
     }
 
@@ -255,7 +224,7 @@ async function revokeToken() {
       fs.unlinkSync(TOKEN_PATH);
     }
     
-    console.log('Token revoked successfully.');
+    console.error('Token revoked successfully.');
     return true;
   } catch (error) {
     console.error('Error revoking token:', error.response?.data || error.message);

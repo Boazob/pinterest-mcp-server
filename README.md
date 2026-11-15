@@ -58,13 +58,13 @@ npm start
 
 The MCP server implements the MCP protocol over Socket.IO and exposes the following tools:
 
-- `pinterest.user.get_info` - Get user information
-- `pinterest.boards.list` - List user's boards
-- `pinterest.boards.create` - Create a new board
-- `pinterest.boards.get` - Get board details
-- `pinterest.pins.list` - List pins on a board
-- `pinterest.pins.create` - Create a new pin
-- `pinterest.pins.get` - Get pin details
+- `pinterest_user_get_info` - Get user information
+- `pinterest_boards_list` - List user's boards
+- `pinterest_boards_create` - Create a new board
+- `pinterest_boards_get` - Get board details
+- `pinterest_pins_list` - List pins on a board
+- `pinterest_pins_create` - Create a new pin
+- `pinterest_pins_get` - Get pin details
 
 You can connect your AI agents to this MCP server using compatible MCP client libraries.
 
