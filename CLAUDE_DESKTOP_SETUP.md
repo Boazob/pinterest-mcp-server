@@ -24,7 +24,7 @@ Make sure your `.env` file contains your Pinterest API credentials:
 ```
 PINTEREST_APP_ID=your_pinterest_app_id
 PINTEREST_APP_SECRET=your_pinterest_app_secret
-REDIRECT_URI=http://localhost:8085/
+REDIRECT_URI=http://localhost:3052/
 ```
 
 ### 3. Authenticate with Pinterest
@@ -58,7 +58,7 @@ Add the following configuration:
       "env": {
         "PINTEREST_APP_ID": "your_pinterest_app_id",
         "PINTEREST_APP_SECRET": "your_pinterest_app_secret",
-        "REDIRECT_URI": "http://localhost:8085/"
+        "REDIRECT_URI": "http://localhost:3052/"
       }
     }
   }
@@ -89,13 +89,13 @@ In Claude Desktop, you can now ask questions like:
 
 The MCP server provides these tools:
 
-- `pinterest.user.get_info` - Get your Pinterest user information
-- `pinterest.boards.list` - List your Pinterest boards
-- `pinterest.boards.create` - Create a new board
-- `pinterest.boards.get` - Get details of a specific board
-- `pinterest.pins.list` - List pins on a board
-- `pinterest.pins.create` - Create a new pin
-- `pinterest.pins.get` - Get details of a specific pin
+- `pinterest_user_get_info` - Get your Pinterest user information
+- `pinterest_boards_list` - List your Pinterest boards
+- `pinterest_boards_create` - Create a new board
+- `pinterest_boards_get` - Get details of a specific board
+- `pinterest_pins_list` - List pins on a board
+- `pinterest_pins_create` - Create a new pin
+- `pinterest_pins_get` - Get details of a specific pin
 
 ## Troubleshooting
 

@@ -5,7 +5,7 @@ const dotenv = require('dotenv');
 const axios = require('axios');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ path: require('path').join(__dirname, '..', '..', '.env') });
 
 // Configuration
 const PINTEREST_API_URL = process.env.PINTEREST_API_URL || 'https://api.pinterest.com/v5';

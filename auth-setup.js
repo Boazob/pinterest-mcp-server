@@ -14,7 +14,7 @@ const { createServer } = require('http');
 
 const app = express();
 const server = createServer(app);
-const PORT = process.env.PORT || 8085;
+const PORT = process.env.PORT || 3052;
 
 console.log('🔗 Pinterest MCP Server Authentication Setup');
 console.log('==========================================');

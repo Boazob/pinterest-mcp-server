@@ -7,7 +7,7 @@ const dotenv = require('dotenv');
 const { exchangeCodeForToken, getValidToken } = require('./token-manager');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ path: require('path').join(__dirname, '..', '..', '.env') });
 
 // Configuration
 const PINTEREST_APP_ID = process.env.PINTEREST_APP_ID;
